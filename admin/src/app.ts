@@ -5,14 +5,16 @@ import {createConnection} from 'typeorm'
 import {Product} from "./entity/product";
 import * as amqp from 'amqplib/callback_api';
 
+// Creating the Database connection to the MySQL 
 createConnection().then(db => {
     const productRepository = db.getRepository(Product);
 
-    amqp.connect('rabbitmq_url', (error0, connection) => {
+    // Unique AMQP URL to connect to
+    amqp.connect('amqps://vhmeuklw:A2l_ngGZuZ85zhbykeiu0pbeRHb9lXov@roedeer.rmq.cloudamqp.com/vhmeuklw', (error0, connection) => {
         if (error0) {
             throw error0
         }
-
+    // Create the Messaging Channel
         connection.createChannel((error1, channel) => {
             if (error1) {
                 throw error1

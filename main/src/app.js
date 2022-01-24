@@ -42,9 +42,9 @@ var typeorm_1 = require("typeorm");
 var amqp = require("amqplib/callback_api");
 var product_1 = require("./entity/product");
 var axios_1 = require("axios");
-typeorm_1.createConnection().then(function (db) {
+(0, typeorm_1.createConnection)().then(function (db) {
     var productRepository = db.getMongoRepository(product_1.Product);
-    amqp.connect('rabbitmq_url', function (error0, connection) {
+    amqp.connect('amqps://vhmeuklw:A2l_ngGZuZ85zhbykeiu0pbeRHb9lXov@roedeer.rmq.cloudamqp.com/vhmeuklw', function (error0, connection) {
         if (error0) {
             throw error0;
         }
@@ -133,7 +133,7 @@ typeorm_1.createConnection().then(function (db) {
                         case 0: return [4 /*yield*/, productRepository.findOne(req.params.id)];
                         case 1:
                             product = _a.sent();
-                            return [4 /*yield*/, axios_1.default.post("http://localhost:8000/api/products/" + product.admin_id + "/like", {})];
+                            return [4 /*yield*/, axios_1.default.post("http://localhost:8000/api/products/".concat(product.admin_id, "/like"), {})];
                         case 2:
                             _a.sent();
                             product.likes++;
