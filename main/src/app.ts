@@ -1,13 +1,15 @@
 import * as express from 'express'
-import {Request, Response} from 'express'
+import { Request, Response } from 'express'
 import * as cors from 'cors'
-import {createConnection} from "typeorm";
+import { createConnection } from "typeorm";
 import * as amqp from 'amqplib/callback_api';
-import {Product} from "./entity/product";
+import { User } from './entity/user';
+import { Product } from "./entity/product";
 import axios from 'axios';
 
 createConnection().then(db => {
     const productRepository = db.getMongoRepository(Product)
+    const userRepository = db.getMongoRepository(User)
 
     amqp.connect('amqps://vhmeuklw:A2l_ngGZuZ85zhbykeiu0pbeRHb9lXov@roedeer.rmq.cloudamqp.com/vhmeuklw', (error0, connection) => {
         if (error0) {
@@ -19,9 +21,13 @@ createConnection().then(db => {
                 throw error1
             }
 
-            channel.assertQueue('product_created', {durable: false})
-            channel.assertQueue('product_updated', {durable: false})
-            channel.assertQueue('product_deleted', {durable: false})
+            channel.assertQueue('product_created', { durable: false })
+            channel.assertQueue('product_updated', { durable: false })
+            channel.assertQueue('product_deleted', { durable: false })
+
+            channel.assertQueue('user_created', { durable: false })
+            channel.assertQueue('user_updated', { durable: false })
+            channel.assertQueue('user_deleted', { durable: false })
 
             const app = express()
 
@@ -38,25 +44,28 @@ createConnection().then(db => {
                 product.title = eventProduct.title
                 product.image = eventProduct.image
                 product.likes = eventProduct.likes
+                product.price = eventProduct.price
                 await productRepository.save(product)
                 console.log('product created')
-            }, {noAck: true})
+            }, { noAck: true })
 
             channel.consume('product_updated', async (msg) => {
                 const eventProduct: Product = JSON.parse(msg.content.toString())
-                const product = await productRepository.findOne({admin_id: parseInt(eventProduct.id)})
+                const product = await productRepository.findOne({ admin_id: parseInt(eventProduct.id) })
                 productRepository.merge(product, {
                     title: eventProduct.title,
                     image: eventProduct.image,
-                    likes: eventProduct.likes
+                    likes: eventProduct.likes,
+                    price: eventProduct.price
+
                 })
                 await productRepository.save(product)
                 console.log('product updated')
-            }, {noAck: true})
+            }, { noAck: true })
 
             channel.consume('product_deleted', async (msg) => {
                 const admin_id = parseInt(msg.content.toString())
-                await productRepository.deleteOne({admin_id})
+                await productRepository.deleteOne({ admin_id })
                 console.log('product deleted')
             })
 
@@ -72,6 +81,42 @@ createConnection().then(db => {
                 await productRepository.save(product)
                 return res.send(product)
             });
+
+            /* User End Point */
+            channel.consume('user_created', async (msg) => {
+                const eventUser: User = JSON.parse(msg.content.toString())
+                const user = new User()
+                user.uid = eventUser.uid
+                user.first_name = eventUser.first_name
+                user.last_name = eventUser.last_name
+                user.email = eventUser.email
+                user.age = eventUser.age
+                await userRepository.save(user)
+                console.log('user created')
+            }, { noAck: true })
+
+
+            channel.consume('user_updated', async (msg) => {
+                const eventUser: User = JSON.parse(msg.content.toString())
+                const user = await userRepository.findOne({ uid: eventUser.uid })
+                userRepository.merge(user, {
+                    first_name: eventUser.first_name,
+                    last_name: eventUser.last_name,
+                    email: eventUser.email,
+                    age: eventUser.age
+
+                })
+                await userRepository.save(user)
+                console.log('user updated')
+            }, { noAck: true })
+
+            channel.consume('user_deleted', async (msg) => {
+                const uid = parseInt(msg.content.toString())
+                await userRepository.deleteOne({ uid })
+                console.log('user deleted')
+            })
+
+            /*********************************************************/
 
             console.log('Listening to port: 8001')
             app.listen(8001)

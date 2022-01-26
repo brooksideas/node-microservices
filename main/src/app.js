@@ -40,10 +40,12 @@ var express = require("express");
 var cors = require("cors");
 var typeorm_1 = require("typeorm");
 var amqp = require("amqplib/callback_api");
+var user_1 = require("./entity/user");
 var product_1 = require("./entity/product");
 var axios_1 = require("axios");
 (0, typeorm_1.createConnection)().then(function (db) {
     var productRepository = db.getMongoRepository(product_1.Product);
+    var userRepository = db.getMongoRepository(user_1.User);
     amqp.connect('amqps://vhmeuklw:A2l_ngGZuZ85zhbykeiu0pbeRHb9lXov@roedeer.rmq.cloudamqp.com/vhmeuklw', function (error0, connection) {
         if (error0) {
             throw error0;
@@ -55,6 +57,9 @@ var axios_1 = require("axios");
             channel.assertQueue('product_created', { durable: false });
             channel.assertQueue('product_updated', { durable: false });
             channel.assertQueue('product_deleted', { durable: false });
+            channel.assertQueue('user_created', { durable: false });
+            channel.assertQueue('user_updated', { durable: false });
+            channel.assertQueue('user_deleted', { durable: false });
             var app = express();
             app.use(cors({
                 origin: ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:4200']
@@ -71,6 +76,7 @@ var axios_1 = require("axios");
                             product.title = eventProduct.title;
                             product.image = eventProduct.image;
                             product.likes = eventProduct.likes;
+                            product.price = eventProduct.price;
                             return [4 /*yield*/, productRepository.save(product)];
                         case 1:
                             _a.sent();
@@ -91,7 +97,8 @@ var axios_1 = require("axios");
                             productRepository.merge(product, {
                                 title: eventProduct.title,
                                 image: eventProduct.image,
-                                likes: eventProduct.likes
+                                likes: eventProduct.likes,
+                                price: eventProduct.price
                             });
                             return [4 /*yield*/, productRepository.save(product)];
                         case 2:
@@ -144,6 +151,65 @@ var axios_1 = require("axios");
                     }
                 });
             }); });
+            /* User End Point */
+            channel.consume('user_created', function (msg) { return __awaiter(void 0, void 0, void 0, function () {
+                var eventUser, user;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            eventUser = JSON.parse(msg.content.toString());
+                            user = new user_1.User();
+                            user.uid = eventUser.uid;
+                            user.first_name = eventUser.first_name;
+                            user.last_name = eventUser.last_name;
+                            user.email = eventUser.email;
+                            user.age = eventUser.age;
+                            return [4 /*yield*/, userRepository.save(user)];
+                        case 1:
+                            _a.sent();
+                            console.log('user created');
+                            return [2 /*return*/];
+                    }
+                });
+            }); }, { noAck: true });
+            channel.consume('user_updated', function (msg) { return __awaiter(void 0, void 0, void 0, function () {
+                var eventUser, user;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            eventUser = JSON.parse(msg.content.toString());
+                            return [4 /*yield*/, userRepository.findOne({ uid: eventUser.uid })];
+                        case 1:
+                            user = _a.sent();
+                            userRepository.merge(user, {
+                                first_name: eventUser.first_name,
+                                last_name: eventUser.last_name,
+                                email: eventUser.email,
+                                age: eventUser.age
+                            });
+                            return [4 /*yield*/, userRepository.save(user)];
+                        case 2:
+                            _a.sent();
+                            console.log('user updated');
+                            return [2 /*return*/];
+                    }
+                });
+            }); }, { noAck: true });
+            channel.consume('user_deleted', function (msg) { return __awaiter(void 0, void 0, void 0, function () {
+                var uid;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            uid = parseInt(msg.content.toString());
+                            return [4 /*yield*/, userRepository.deleteOne({ uid: uid })];
+                        case 1:
+                            _a.sent();
+                            console.log('user deleted');
+                            return [2 /*return*/];
+                    }
+                });
+            }); });
+            /*********************************************************/
             console.log('Listening to port: 8001');
             app.listen(8001);
             process.on('beforeExit', function () {

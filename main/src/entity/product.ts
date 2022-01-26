@@ -16,4 +16,7 @@ export class Product {
 
     @Column({default: 0})
     likes: number;
+
+    @Column({default: 0})
+    price: number;
 }
